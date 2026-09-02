@@ -1,0 +1,27 @@
+# Local environment
+.env
+.env.*
+!.env.example
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Logs and temporary files
+*.log
+*.err
+*.tmp
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Codex/local agent metadata
+.agents/
+.codex/
