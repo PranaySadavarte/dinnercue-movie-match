@@ -770,7 +770,7 @@
             <div class="nav-actions">
                 <button class="secondary-button" type="button" data-scroll-target="tasteSection">Taste quiz</button>
                 <button class="secondary-button" type="button" data-scroll-target="historyPanel">Watched</button>
-                <button class="secondary-button" type="button" data-api-settings>API keys</button>
+                <button class="secondary-button" type="button" data-api-settings>Movie data</button>
                 <button class="gold-button" type="button" data-surprise>Surprise Me</button>
             </div>
         </div>
@@ -918,11 +918,7 @@
         const storageKeys = {
             watched: "dinnercue_watched_titles",
             watchlist: "dinnercue_watchlist_titles",
-            omdbKey: "dinnercue_omdb_api_key",
-            tmdbKey: "dinnercue_tmdb_api_key",
         };
-        let omdbApiKey = localStorage.getItem(storageKeys.omdbKey) || "";
-        let tmdbApiKey = localStorage.getItem(storageKeys.tmdbKey) || "";
 
         const input = document.getElementById("movieInput");
         const searchButton = document.getElementById("searchButton");
@@ -973,14 +969,7 @@
         runtimeFilter.addEventListener("change", loadHomePicks);
 
         renderLists();
-        if (tmdbApiKey) {
-            loadHomePicks();
-        } else {
-            setStatus("Add your TMDb API key to load recommendations and trailers.", "error");
-            moviesContainer.innerHTML = `<div class="empty-state">Use the API keys button in the top bar to connect movie data.</div>`;
-            personalizedList.innerHTML = `<div class="empty-state">Recommendations will appear after TMDb is connected.</div>`;
-            trailerReels.innerHTML = `<div class="empty-state">Trailer cards will appear after TMDb is connected.</div>`;
-        }
+        loadHomePicks();
 
         async function fetchMovie() {
             const movieTitle = input.value.trim();
@@ -995,24 +984,7 @@
             setLoading(true, `Searching for "${movieTitle}"...`);
 
             try {
-                if (!omdbApiKey && !tmdbApiKey) {
-                    openApiSettings();
-                    setStatus("Add API keys before searching.", "error");
-                    return;
-                }
-
-                if (!omdbApiKey && tmdbApiKey) {
-                    const tmdbFallback = await findTmdbAny(movieTitle);
-                    if (tmdbFallback) {
-                        await openTitle(tmdbFallback);
-                    } else {
-                        showEmptyMovie(`No match found for "${movieTitle}". Try a shorter title or choose a suggestion.`);
-                        setStatus("Title not found. Try another search.", "error");
-                    }
-                    return;
-                }
-
-                const omdbUrl = `https://www.omdbapi.com/?apikey=${omdbApiKey}&t=${encodeURIComponent(movieTitle)}`;
+                const omdbUrl = `/api/catalog/omdb?title=${encodeURIComponent(movieTitle)}`;
                 const omdbResponse = await fetch(omdbUrl);
                 const movieData = await omdbResponse.json();
 
@@ -1050,23 +1022,15 @@
         }
 
         async function findTmdbMovie(title, year) {
-            if (!ensureTmdbKey()) {
-                return null;
-            }
-
             const yearParam = (year || "").slice(0, 4);
-            const tmdbSearchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${tmdbApiKey}&query=${encodeURIComponent(title)}&year=${encodeURIComponent(yearParam)}`;
+            const tmdbSearchUrl = `/api/catalog/tmdb/search/movie?query=${encodeURIComponent(title)}&year=${encodeURIComponent(yearParam)}`;
             const tmdbResponse = await fetch(tmdbSearchUrl);
             const tmdbData = await tmdbResponse.json();
             return tmdbData.results?.[0] || null;
         }
 
         async function findTmdbAny(title) {
-            if (!ensureTmdbKey()) {
-                return null;
-            }
-
-            const searchUrl = `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(title)}`;
+            const searchUrl = `/api/catalog/tmdb/search/multi?query=${encodeURIComponent(title)}`;
             const response = await fetch(searchUrl);
             const data = await response.json();
             const result = (data.results || []).find((item) => item.media_type === "movie" || item.media_type === "tv");
@@ -1075,11 +1039,7 @@
 
         async function fetchRelatedMovies(movieId, title) {
             try {
-                if (!ensureTmdbKey()) {
-                    return;
-                }
-
-                const tmdbRelatedUrl = `https://api.themoviedb.org/3/movie/${movieId}/recommendations?api_key=${tmdbApiKey}`;
+                const tmdbRelatedUrl = `/api/catalog/tmdb/movie/${movieId}/recommendations`;
                 const relatedResponse = await fetch(tmdbRelatedUrl);
                 const relatedData = await relatedResponse.json();
                 const movies = relatedData.results?.filter((movie) => movie.title) || [];
@@ -1103,11 +1063,7 @@
 
         async function fetchRelatedShows(showId, title) {
             try {
-                if (!ensureTmdbKey()) {
-                    return;
-                }
-
-                const relatedUrl = `https://api.themoviedb.org/3/tv/${showId}/recommendations?api_key=${tmdbApiKey}`;
+                const relatedUrl = `/api/catalog/tmdb/tv/${showId}/recommendations`;
                 const relatedResponse = await fetch(relatedUrl);
                 const relatedData = await relatedResponse.json();
                 const shows = normalizeTmdbItems(relatedData.results || [], "tv").slice(0, 12);
@@ -1128,10 +1084,6 @@
         }
 
         async function loadHomePicks() {
-            if (!ensureTmdbKey()) {
-                return;
-            }
-
             setStatus("Refreshing tonight picks...");
             try {
                 const type = getTypeFilter();
@@ -1139,7 +1091,6 @@
                 const page = String(Math.floor(Math.random() * 3) + 1);
                 const responses = await Promise.all(endpoints.map(async (endpoint) => {
                     const params = new URLSearchParams({
-                        api_key: tmdbApiKey,
                         sort_by: "popularity.desc",
                         page,
                     });
@@ -1152,7 +1103,7 @@
                         applyRuntimeParams(params);
                     }
 
-                    const response = await fetch(`https://api.themoviedb.org/3/discover/${endpoint}?${params.toString()}`);
+                    const response = await fetch(`/api/catalog/tmdb/discover/${endpoint}?${params.toString()}`);
                     const data = await response.json();
                     return normalizeTmdbItems(data.results || [], endpoint);
                 }));
@@ -1173,11 +1124,6 @@
         async function renderPersonalized() {
             personalizedList.innerHTML = "";
 
-            if (!ensureTmdbKey()) {
-                personalizedList.innerHTML = `<div class="empty-state">Add your TMDb API key to load personalized recommendations.</div>`;
-                return;
-            }
-
             if (!watchedTitles.length) {
                 personalizedList.innerHTML = `<div class="empty-state">Mark a few titles as watched, or use the taste quiz, and recommendations will appear here.</div>`;
                 personalizedNote.textContent = "No watched titles yet.";
@@ -1190,7 +1136,7 @@
             for (const seed of seeds) {
                 try {
                     const endpoint = seed.media_type === "tv" ? "tv" : "movie";
-                    const response = await fetch(`https://api.themoviedb.org/3/${endpoint}/${seed.id}/recommendations?api_key=${tmdbApiKey}`);
+                    const response = await fetch(`/api/catalog/tmdb/${endpoint}/${seed.id}/recommendations`);
                     const data = await response.json();
                     const recommendations = normalizeTmdbItems(data.results || [], endpoint).slice(0, 6);
                     recommendations.forEach((item) => {
@@ -1218,17 +1164,13 @@
         }
 
         async function loadTasteQuiz() {
-            if (!ensureTmdbKey()) {
-                return;
-            }
-
             tasteGrid.classList.remove("is-hidden");
             tasteGrid.innerHTML = `<div class="empty-state">Loading taste picks...</div>`;
 
             try {
                 const [movieResponse, tvResponse] = await Promise.all([
-                    fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${tmdbApiKey}&sort_by=vote_count.desc&vote_count.gte=5000&page=1`),
-                    fetch(`https://api.themoviedb.org/3/discover/tv?api_key=${tmdbApiKey}&sort_by=vote_count.desc&vote_count.gte=2500&page=1`),
+                    fetch(`/api/catalog/tmdb/discover/movie?sort_by=vote_count.desc&vote_count.gte=5000&page=1`),
+                    fetch(`/api/catalog/tmdb/discover/tv?sort_by=vote_count.desc&vote_count.gte=2500&page=1`),
                 ]);
                 const movieData = await movieResponse.json();
                 const tvData = await tvResponse.json();
@@ -1358,14 +1300,14 @@
             clearTimeout(autocompleteTimer);
             const query = input.value.trim();
 
-            if (query.length < 2 || !tmdbApiKey) {
+            if (query.length < 2) {
                 closeSuggestions();
                 return;
             }
 
             autocompleteTimer = setTimeout(async () => {
                 try {
-                    const searchUrl = `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}`;
+                    const searchUrl = `/api/catalog/tmdb/search/multi?query=${encodeURIComponent(query)}`;
                     const response = await fetch(searchUrl);
                     const data = await response.json();
                     const results = (data.results || [])
@@ -1535,11 +1477,6 @@
         }
 
         async function renderTrailerReels(items) {
-            if (!ensureTmdbKey()) {
-                trailerReels.innerHTML = `<div class="empty-state">Add your TMDb API key to load trailers.</div>`;
-                return;
-            }
-
             const candidates = dedupeItems(items.filter(Boolean)).slice(0, 8);
 
             if (!candidates.length) {
@@ -1590,12 +1527,8 @@
 
         async function fetchTrailer(item) {
             try {
-                if (!ensureTmdbKey()) {
-                    return null;
-                }
-
                 const endpoint = item.media_type === "tv" ? "tv" : "movie";
-                const response = await fetch(`https://api.themoviedb.org/3/${endpoint}/${item.id}/videos?api_key=${tmdbApiKey}`);
+                const response = await fetch(`/api/catalog/tmdb/${endpoint}/${item.id}/videos`);
                 const data = await response.json();
                 const videos = data.results || [];
                 return videos.find(isBestTrailer) || videos.find(isAnyTrailer) || null;
@@ -1687,41 +1620,17 @@
             }
         }
 
-        function ensureTmdbKey() {
-            if (tmdbApiKey) {
-                return true;
-            }
-
-            setStatus("Add your TMDb API key to use recommendations, search suggestions, and trailers.", "error");
-            return false;
-        }
-
-        function openApiSettings() {
-            const nextTmdbKey = window.prompt("TMDb API key", tmdbApiKey);
-            if (nextTmdbKey !== null) {
-                tmdbApiKey = nextTmdbKey.trim();
-                if (tmdbApiKey) {
-                    localStorage.setItem(storageKeys.tmdbKey, tmdbApiKey);
+        async function openApiSettings() {
+            try {
+                const response = await fetch("/api/catalog/status");
+                const data = await response.json();
+                if (data.mode === "live") {
+                    setStatus(`Live movie data is connected${data.omdb_configured ? " with enhanced details" : ""}.`, "success");
                 } else {
-                    localStorage.removeItem(storageKeys.tmdbKey);
+                    setStatus("Showing DinnerCue starter picks. Add TMDB_API_KEY to .env for the live catalog.", "success");
                 }
-            }
-
-            const nextOmdbKey = window.prompt("OMDb API key, optional but improves movie detail search", omdbApiKey);
-            if (nextOmdbKey !== null) {
-                omdbApiKey = nextOmdbKey.trim();
-                if (omdbApiKey) {
-                    localStorage.setItem(storageKeys.omdbKey, omdbApiKey);
-                } else {
-                    localStorage.removeItem(storageKeys.omdbKey);
-                }
-            }
-
-            if (tmdbApiKey) {
-                setStatus("API keys saved locally in this browser.", "success");
-                loadHomePicks();
-            } else {
-                setStatus("TMDb API key is required for recommendations and trailers.", "error");
+            } catch {
+                setStatus("Could not check the movie data connection.", "error");
             }
         }
 

@@ -17,9 +17,9 @@ DinnerCue Movie Match is a lightweight movie and TV discovery app. It helps user
 
 ## Run Locally
 
-Open `fetchmov.html` in a browser.
+Run the Flask app and open `http://127.0.0.1:5000`. DinnerCue includes a small starter catalog, so recommendations and search work immediately on a fresh checkout.
 
-Use the `API keys` button in the top bar to save your TMDb key and optional OMDb key locally in your browser. The keys are stored in local storage and are not committed to the repository.
+For live catalog data, set your TMDb key and optional OMDb key in `.env`. Keys remain on the server and are never sent to the browser.
 
 The optional Flask helper can serve the same page if Python dependencies are installed:
 
@@ -64,4 +64,4 @@ python fetchmov.py
 
 ## Notes
 
-This version stores watched history and watchlist data in browser local storage. API keys should stay local during development and should be moved behind a backend before production deployment.
+This version stores watched history and watchlist data in browser local storage. API keys are read by Flask and movie-service requests are proxied through allowlisted server endpoints.

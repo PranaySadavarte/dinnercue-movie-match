@@ -1,5 +1,9 @@
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from flask import Flask, request, render_template
 import requests
 
@@ -8,6 +12,8 @@ from dinnercue.api import register_api
 app = Flask(__name__, template_folder=".")
 app.config["SECRET_KEY"] = os.getenv("DINNERCUE_SECRET_KEY", "dev-only-change-me")
 app.config["DINNERCUE_DATABASE_PATH"] = os.getenv("DINNERCUE_DATABASE_PATH")
+app.config["TMDB_API_KEY"] = os.getenv("TMDB_API_KEY", "")
+app.config["OMDB_API_KEY"] = os.getenv("OMDB_API_KEY", "")
 register_api(app)
 
 OMDB_API_KEY = os.getenv("OMDB_API_KEY", "")
@@ -104,4 +110,4 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=os.getenv("FLASK_DEBUG") == "1")

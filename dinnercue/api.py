@@ -1,9 +1,11 @@
 from functools import wraps
 
 from flask import Blueprint, current_app, jsonify, request, session
+import requests
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .db import connect, init_db
+from .catalog import fetch_omdb, fetch_tmdb
 from .recommendations import rank_candidates
 
 
@@ -31,6 +33,40 @@ def login_required(view):
 @api.get("/health")
 def health():
     return jsonify({"status": "ok"})
+
+
+@api.get("/catalog/status")
+def catalog_status():
+    return jsonify({
+        "mode": "live" if current_app.config.get("TMDB_API_KEY") else "starter",
+        "tmdb_configured": bool(current_app.config.get("TMDB_API_KEY")),
+        "omdb_configured": bool(current_app.config.get("OMDB_API_KEY")),
+    })
+
+
+@api.get("/catalog/tmdb/<path:resource>")
+def catalog_tmdb(resource):
+    params = {key: value for key, value in request.args.items() if key != "api_key"}
+    try:
+        data, source = fetch_tmdb(resource, params)
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 404
+    except requests.RequestException:
+        return jsonify({"error": "movie catalog is temporarily unavailable"}), 502
+    response = jsonify(data)
+    response.headers["X-DinnerCue-Catalog"] = source
+    return response
+
+
+@api.get("/catalog/omdb")
+def catalog_omdb():
+    title = request.args.get("title", "").strip()
+    if not title:
+        return jsonify({"error": "title is required"}), 400
+    try:
+        return jsonify(fetch_omdb(title))
+    except requests.RequestException:
+        return jsonify({"Response": "False", "Error": "Movie details are temporarily unavailable."}), 502
 
 
 @api.post("/auth/register")
