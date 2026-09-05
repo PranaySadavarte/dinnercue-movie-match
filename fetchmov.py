@@ -3,7 +3,10 @@ import os
 from flask import Flask, request, render_template
 import requests
 
+from dinnercue.api import register_api
+
 app = Flask(__name__, template_folder=".")
+register_api(app)
 
 OMDB_API_KEY = os.getenv("OMDB_API_KEY", "")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY", "")
