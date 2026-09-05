@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL,
+    password_hash TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -84,5 +85,9 @@ def init_db(path=None):
     connection = connect(path)
     try:
         connection.executescript(SCHEMA)
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
+        if "password_hash" not in columns:
+            connection.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
+            connection.commit()
     finally:
         connection.close()
