@@ -6,6 +6,8 @@ import requests
 from dinnercue.api import register_api
 
 app = Flask(__name__, template_folder=".")
+app.config["SECRET_KEY"] = os.getenv("DINNERCUE_SECRET_KEY", "dev-only-change-me")
+app.config["DINNERCUE_DATABASE_PATH"] = os.getenv("DINNERCUE_DATABASE_PATH")
 register_api(app)
 
 OMDB_API_KEY = os.getenv("OMDB_API_KEY", "")

@@ -43,6 +43,17 @@ Send candidate titles to `POST /api/recommendations/rank`. Each candidate can in
 `personal_match`, `friends`, `on_subscribed_service`, `context_match`, and `novelty`.
 The response includes a score breakdown and short reasons suitable for showing in the UI.
 
+## Social API
+
+The first authenticated social flow is available under `/api`:
+
+- `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, and `GET /auth/me`
+- `POST /friends/requests`, `POST /friends/<id>/accept`, `GET /friends`, and `PATCH /friends/<id>/trust`
+- `POST /reviews` and `GET /reviews/feed`
+
+Passwords are stored as secure hashes and login state uses an HTTP-only session cookie.
+Set a strong `DINNERCUE_SECRET_KEY` outside development.
+
 For the Flask helper, set environment variables before starting the server:
 
 ```powershell
