@@ -28,6 +28,7 @@ class DatabaseTests(unittest.TestCase):
             "reviews",
             "subscriptions",
             "recommendations",
+            "user_feedback",
         }.issubset(tables))
 
 

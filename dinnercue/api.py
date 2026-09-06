@@ -35,6 +35,29 @@ def health():
     return jsonify({"status": "ok"})
 
 
+@api.post("/feedback")
+def save_feedback():
+    payload = request.get_json(silent=True) or {}
+    category = str(payload.get("category", "idea")).strip().lower()
+    message = str(payload.get("message", "")).strip()
+    page_path = str(payload.get("page_path", "/")).strip()[:200] or "/"
+    if category not in {"idea", "bug", "confusing", "other"}:
+        return jsonify({"error": "invalid feedback category"}), 400
+    if not 10 <= len(message) <= 2000:
+        return jsonify({"error": "feedback must be between 10 and 2000 characters"}), 400
+
+    connection = _connection()
+    try:
+        cursor = connection.execute(
+            "INSERT INTO user_feedback (user_id, category, message, page_path) VALUES (?, ?, ?, ?)",
+            (session.get("user_id"), category, message, page_path),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return jsonify({"id": cursor.lastrowid, "status": "received"}), 201
+
+
 @api.get("/catalog/status")
 def catalog_status():
     return jsonify({

@@ -34,6 +34,7 @@
                 url("https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1800&q=80") center/cover fixed;
             color: var(--text);
             scroll-behavior: smooth;
+            overflow-x: hidden;
         }
 
         a {
@@ -121,11 +122,11 @@
         }
 
         .hero {
-            min-height: 42vh;
+            min-height: 0;
             display: grid;
             align-content: end;
-            gap: 24px;
-            padding: 40px 0 28px;
+            gap: 18px;
+            padding: 32px 0 20px;
         }
 
         .eyebrow {
@@ -145,10 +146,10 @@
         }
 
         h1 {
-            max-width: 830px;
+            max-width: 760px;
             margin-bottom: 0;
-            font-size: clamp(2.35rem, 7vw, 5.8rem);
-            line-height: 0.95;
+            font-size: clamp(2.35rem, 5.4vw, 4.7rem);
+            line-height: 0.98;
             letter-spacing: 0;
         }
 
@@ -441,6 +442,13 @@
         .side-column {
             display: grid;
             gap: 28px;
+            min-width: 0;
+        }
+
+        .main-column > section {
+            min-width: 0;
+            max-width: 100%;
+            overflow: hidden;
         }
 
         .featured-card {
@@ -518,8 +526,67 @@
         .poster-grid,
         .quiz-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
             gap: 18px;
+        }
+
+        .poster-grid {
+            width: 100%;
+            max-width: 100%;
+            grid-auto-flow: column;
+            grid-auto-columns: minmax(180px, 220px);
+            overflow-x: auto;
+            padding: 2px 2px 16px;
+            scroll-snap-type: x proximity;
+            scrollbar-color: var(--surface-soft) transparent;
+        }
+
+        .poster-grid > * {
+            scroll-snap-align: start;
+        }
+
+        .quiz-grid {
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        }
+
+        dialog {
+            width: min(520px, calc(100% - 32px));
+            padding: 0;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: var(--surface);
+            color: var(--text);
+            box-shadow: var(--shadow);
+        }
+
+        dialog::backdrop {
+            background: rgba(5, 6, 7, 0.78);
+            backdrop-filter: blur(5px);
+        }
+
+        .feedback-form {
+            display: grid;
+            gap: 16px;
+            padding: 24px;
+        }
+
+        .feedback-form textarea {
+            width: 100%;
+            min-height: 140px;
+            resize: vertical;
+            padding: 14px 16px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #11151c;
+            color: var(--text);
+            font: inherit;
+            line-height: 1.5;
+        }
+
+        .feedback-form label {
+            display: grid;
+            gap: 7px;
+            color: var(--muted);
+            font-weight: 750;
         }
 
         .movie-card,
@@ -748,10 +815,13 @@
                 width: 100%;
             }
 
-            .poster-grid,
             .quiz-grid,
             .trailer-reels {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .poster-grid {
+                grid-auto-columns: minmax(155px, 72%);
             }
 
             .trailer-reels {
@@ -771,6 +841,7 @@
                 <button class="secondary-button" type="button" data-scroll-target="tasteSection">Taste quiz</button>
                 <button class="secondary-button" type="button" data-scroll-target="historyPanel">Watched</button>
                 <button class="secondary-button" type="button" data-api-settings>Movie data</button>
+                <button class="secondary-button" type="button" data-feedback-open>Feedback</button>
                 <button class="gold-button" type="button" data-surprise>Surprise Me</button>
             </div>
         </div>
@@ -845,17 +916,6 @@
             <div id="searchedMovie" class="empty-state">Search a movie or choose a recommendation to see details here.</div>
         </section>
 
-        <section aria-labelledby="trailers-heading" id="trailersSection">
-            <div class="section-heading">
-                <div>
-                    <p class="eyebrow">Trailer reels</p>
-                    <h2 id="trailers-heading">Swipe through trailers</h2>
-                </div>
-                <p class="section-note" id="trailersNote">Trailers update with your picks.</p>
-            </div>
-            <div class="trailer-reels" id="trailerReels"></div>
-        </section>
-
         <div class="content-layout">
             <section class="main-column">
                 <section aria-labelledby="personalized-heading">
@@ -902,6 +962,17 @@
             </aside>
         </div>
 
+        <section aria-labelledby="trailers-heading" id="trailersSection">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Trailer reels</p>
+                    <h2 id="trailers-heading">Swipe through trailers</h2>
+                </div>
+                <p class="section-note" id="trailersNote">Trailers update with your picks.</p>
+            </div>
+            <div class="trailer-reels" id="trailerReels"></div>
+        </section>
+
         <section class="quiz-nudge" id="tasteSection">
             <div>
                 <p class="eyebrow">Personalization</p>
@@ -912,6 +983,34 @@
         </section>
         <div class="quiz-grid is-hidden" id="tasteGrid" aria-label="Taste quiz titles"></div>
     </main>
+
+    <dialog id="feedbackDialog" aria-labelledby="feedback-title">
+        <form class="feedback-form" id="feedbackForm">
+            <div>
+                <p class="eyebrow">Help shape DinnerCue</p>
+                <h2 id="feedback-title">What should we improve?</h2>
+                <p class="section-note">Your feedback is stored privately with this development build.</p>
+            </div>
+            <label>
+                Feedback type
+                <select id="feedbackCategory" name="category">
+                    <option value="idea">Idea</option>
+                    <option value="bug">Something is broken</option>
+                    <option value="confusing">Something is confusing</option>
+                    <option value="other">Other</option>
+                </select>
+            </label>
+            <label>
+                Your feedback
+                <textarea id="feedbackMessage" name="message" minlength="10" maxlength="2000" required placeholder="Tell us what happened or what would make DinnerCue better."></textarea>
+            </label>
+            <div class="actions">
+                <button class="gold-button" type="submit">Send feedback</button>
+                <button class="secondary-button" type="button" data-feedback-close>Cancel</button>
+            </div>
+            <div class="status" id="feedbackStatus" role="status" aria-live="polite"></div>
+        </form>
+    </dialog>
 
     <script>
         const posterBaseUrl = "https://image.tmdb.org/t/p/w342";
@@ -936,6 +1035,10 @@
         const trailersNote = document.getElementById("trailersNote");
         const genreFilter = document.getElementById("genreFilter");
         const runtimeFilter = document.getElementById("runtimeFilter");
+        const feedbackDialog = document.getElementById("feedbackDialog");
+        const feedbackForm = document.getElementById("feedbackForm");
+        const feedbackMessage = document.getElementById("feedbackMessage");
+        const feedbackStatus = document.getElementById("feedbackStatus");
 
         let autocompleteTimer;
         let currentSelection = null;
@@ -967,6 +1070,7 @@
         });
         genreFilter.addEventListener("change", loadHomePicks);
         runtimeFilter.addEventListener("change", loadHomePicks);
+        feedbackForm.addEventListener("submit", submitFeedback);
 
         renderLists();
         loadHomePicks();
@@ -1373,6 +1477,18 @@
                 return;
             }
 
+            if (target.closest("[data-feedback-open]")) {
+                feedbackStatus.textContent = "";
+                feedbackDialog.showModal();
+                feedbackMessage.focus();
+                return;
+            }
+
+            if (target.closest("[data-feedback-close]")) {
+                feedbackDialog.close();
+                return;
+            }
+
             if (target.closest("[data-refresh-home]")) {
                 loadHomePicks();
                 return;
@@ -1631,6 +1747,35 @@
                 }
             } catch {
                 setStatus("Could not check the movie data connection.", "error");
+            }
+        }
+
+        async function submitFeedback(event) {
+            event.preventDefault();
+            const submitButton = feedbackForm.querySelector("button[type='submit']");
+            submitButton.disabled = true;
+            feedbackStatus.textContent = "Sending...";
+            try {
+                const response = await fetch("/api/feedback", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        category: document.getElementById("feedbackCategory").value,
+                        message: feedbackMessage.value.trim(),
+                        page_path: window.location.pathname,
+                    }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Feedback could not be sent.");
+                }
+                feedbackForm.reset();
+                feedbackStatus.textContent = "Thank you — your feedback was saved.";
+                setTimeout(() => feedbackDialog.close(), 900);
+            } catch (error) {
+                feedbackStatus.textContent = error.message;
+            } finally {
+                submitButton.disabled = false;
             }
         }
 

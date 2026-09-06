@@ -50,6 +50,7 @@ The first authenticated social flow is available under `/api`:
 - `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, and `GET /auth/me`
 - `POST /friends/requests`, `POST /friends/<id>/accept`, `GET /friends`, and `PATCH /friends/<id>/trust`
 - `POST /reviews` and `GET /reviews/feed`
+- `POST /feedback` for private product feedback from signed-in or anonymous users
 
 Passwords are stored as secure hashes and login state uses an HTTP-only session cookie.
 Set a strong `DINNERCUE_SECRET_KEY` outside development.

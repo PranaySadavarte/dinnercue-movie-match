@@ -28,7 +28,7 @@ class SocialApiTests(unittest.TestCase):
 
         connection = connect(self.app.config["DINNERCUE_DATABASE_PATH"])
         try:
-            for table in ("recommendations", "subscriptions", "reviews", "friendships", "users"):
+            for table in ("user_feedback", "recommendations", "subscriptions", "reviews", "friendships", "users"):
                 connection.execute(f"DELETE FROM {table}")
             connection.commit()
         finally:
@@ -85,6 +85,22 @@ class SocialApiTests(unittest.TestCase):
         self.register(stranger, "stranger", "Stranger")
         maya.post("/api/reviews", json={"tmdb_id": 1, "rating": 5})
         self.assertEqual(stranger.get("/api/reviews/feed").json["reviews"], [])
+
+    def test_feedback_can_be_submitted_without_an_account(self):
+        client = self.app.test_client()
+        response = client.post("/api/feedback", json={
+            "category": "confusing",
+            "message": "The recommendation reason needs more detail.",
+            "page_path": "/",
+        })
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json["status"], "received")
+
+    def test_feedback_rejects_too_short_messages(self):
+        client = self.app.test_client()
+        self.assertEqual(client.post("/api/feedback", json={
+            "category": "bug", "message": "broken"
+        }).status_code, 400)
 
 
 if __name__ == "__main__":

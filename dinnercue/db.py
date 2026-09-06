@@ -61,9 +61,19 @@ CREATE TABLE IF NOT EXISTS recommendations (
     CHECK (sender_id != recipient_id)
 );
 
+CREATE TABLE IF NOT EXISTS user_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    category TEXT NOT NULL CHECK (category IN ('idea', 'bug', 'confusing', 'other')),
+    message TEXT NOT NULL,
+    page_path TEXT NOT NULL DEFAULT '/',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_reviews_title ON reviews (tmdb_id, media_type);
 CREATE INDEX IF NOT EXISTS idx_recommendations_recipient
     ON recommendations (recipient_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_feedback_created ON user_feedback (created_at DESC);
 """
 
 
