@@ -8,18 +8,33 @@ DinnerCue Movie Match is a lightweight movie and TV discovery app. It helps user
 - Personalized recommendations from locally saved watched history
 - Taste quiz seeded from highly rated and heavily watched titles
 - Genre, runtime, and content type filters
+- Streaming-service filtering for Netflix, Prime Video, Disney+, Hulu, Max, and more
 - Watchlist and watched-history panels stored in the browser
 - Surprise Me action for quick pick selection
 - Swipeable trailer cards that open directly on YouTube
 - JustWatch links for finding where a title is available
 - Server-side foundation for users, friendships, trusted recommenders, reviews, subscriptions, and direct recommendations
 - Explainable recommendation ranking that combines personal taste, trusted friends, availability, tonight's context, and novelty
+- Presence-aware group standings so absent friends do not decide tonight's pick
+- Cached TMDb responses with bounded retry/backoff and short-lived stale fallback
+- First-run onboarding for subscriptions, favorite genres, mood, runtime, content type, and watched-title seeds
+- Google OpenID Connect login with persistent profiles, plus browser-local guest mode
 
 ## Run Locally
 
-Open `fetchmov.html` in a browser.
+Run the Flask app and open `http://127.0.0.1:5000`. DinnerCue includes a small starter catalog, so recommendations and search work immediately on a fresh checkout.
 
-Use the `API keys` button in the top bar to save your TMDb key and optional OMDb key locally in your browser. The keys are stored in local storage and are not committed to the repository.
+For live catalog data, set your TMDb key and optional OMDb key in `.env`. Keys remain on the server and are never sent to the browser.
+
+Google login uses a server-side OpenID Connect flow. Create a Google Web application
+client, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and register this local
+redirect URI exactly:
+
+```text
+http://127.0.0.1:5000/auth/google/callback
+```
+
+Without those credentials the guest onboarding flow remains fully usable.
 
 The optional Flask helper can serve the same page if Python dependencies are installed:
 
@@ -43,6 +58,10 @@ Send candidate titles to `POST /api/recommendations/rank`. Each candidate can in
 `personal_match`, `friends`, `on_subscribed_service`, `context_match`, and `novelty`.
 The response includes a score breakdown and short reasons suitable for showing in the UI.
 
+Send candidates, weighted friend votes, and `absent_friend_ids` to
+`POST /api/recommendations/group-board`. The response returns deterministic
+standings and an explicit `no-votes`, `all-waiting`, or `ready` verdict.
+
 ## Social API
 
 The first authenticated social flow is available under `/api`:
@@ -50,6 +69,8 @@ The first authenticated social flow is available under `/api`:
 - `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, and `GET /auth/me`
 - `POST /friends/requests`, `POST /friends/<id>/accept`, `GET /friends`, and `PATCH /friends/<id>/trust`
 - `POST /reviews` and `GET /reviews/feed`
+- `GET /subscriptions` and `PUT /subscriptions`
+- `POST /feedback` for private product feedback from signed-in or anonymous users
 
 Passwords are stored as secure hashes and login state uses an HTTP-only session cookie.
 Set a strong `DINNERCUE_SECRET_KEY` outside development.
@@ -64,4 +85,8 @@ python fetchmov.py
 
 ## Notes
 
-This version stores watched history and watchlist data in browser local storage. API keys should stay local during development and should be moved behind a backend before production deployment.
+This version stores watched history and watchlist data in browser local storage. API keys are read by Flask and movie-service requests are proxied through allowlisted server endpoints.
+
+See `THIRD_PARTY_NOTICES.md` for the permissively licensed public projects whose
+patterns informed parts of DinnerCue. Repositories with copyleft or unresolved
+licenses were used only for product research, not as code sources.

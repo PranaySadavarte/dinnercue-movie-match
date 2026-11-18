@@ -24,10 +24,12 @@ class DatabaseTests(unittest.TestCase):
 
         self.assertTrue({
             "users",
+            "user_profiles",
             "friendships",
             "reviews",
             "subscriptions",
             "recommendations",
+            "user_feedback",
         }.issubset(tables))
 
 
