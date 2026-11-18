@@ -6,6 +6,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from .db import connect, init_db
 from .catalog import fetch_omdb, fetch_tmdb
+from .group_choice import build_night_board, night_verdict
 from .recommendations import rank_candidates
 
 
@@ -301,6 +302,56 @@ def review_feed():
     return jsonify({"reviews": [dict(row) for row in rows]})
 
 
+@api.get("/subscriptions")
+@login_required
+def subscriptions():
+    connection = _connection()
+    try:
+        rows = connection.execute(
+            "SELECT provider_id, provider_name, region FROM subscriptions WHERE user_id = ? ORDER BY provider_name",
+            (session["user_id"],),
+        ).fetchall()
+    finally:
+        connection.close()
+    return jsonify({"subscriptions": [dict(row) for row in rows]})
+
+
+@api.put("/subscriptions")
+@login_required
+def replace_subscriptions():
+    payload = request.get_json(silent=True) or {}
+    providers = payload.get("subscriptions")
+    region = str(payload.get("region", "US")).strip().upper()
+    if not isinstance(providers, list) or len(providers) > 30 or len(region) != 2:
+        return jsonify({"error": "subscriptions must be a list and region must be a two-letter code"}), 400
+
+    normalized = {}
+    try:
+        for provider in providers:
+            provider_id = int(provider["provider_id"])
+            provider_name = str(provider["provider_name"]).strip()[:80]
+            if provider_id <= 0 or not provider_name:
+                raise ValueError
+            normalized[provider_id] = provider_name
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "each subscription needs a valid provider_id and provider_name"}), 400
+
+    connection = _connection()
+    try:
+        connection.execute("DELETE FROM subscriptions WHERE user_id = ? AND region = ?", (session["user_id"], region))
+        connection.executemany(
+            "INSERT INTO subscriptions (user_id, provider_id, provider_name, region) VALUES (?, ?, ?, ?)",
+            [(session["user_id"], provider_id, provider_name, region) for provider_id, provider_name in normalized.items()],
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return jsonify({"subscriptions": [
+        {"provider_id": provider_id, "provider_name": provider_name, "region": region}
+        for provider_id, provider_name in normalized.items()
+    ]})
+
+
 @api.post("/recommendations/rank")
 def recommendations_rank():
     payload = request.get_json(silent=True) or {}
@@ -313,6 +364,21 @@ def recommendations_rank():
     except (KeyError, TypeError, ValueError) as error:
         return jsonify({"error": f"invalid candidate: {error}"}), 400
     return jsonify({"results": ranked})
+
+
+@api.post("/recommendations/group-board")
+def recommendations_group_board():
+    payload = request.get_json(silent=True) or {}
+    candidates = payload.get("candidates")
+    absent = payload.get("absent_friend_ids", [])
+    if not isinstance(candidates, list) or not candidates or len(candidates) > 100 or not isinstance(absent, list):
+        return jsonify({"error": "candidates must be a non-empty list and absent_friend_ids must be a list"}), 400
+    try:
+        board = build_night_board(candidates, absent)
+        verdict = night_verdict(board)
+    except (KeyError, TypeError, ValueError) as error:
+        return jsonify({"error": f"invalid group choice: {error}"}), 400
+    return jsonify({"board": board, "verdict": verdict})
 
 
 def register_api(app):

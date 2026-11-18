@@ -1,13 +1,41 @@
 import re
+import threading
+import time
 
 import requests
 from flask import current_app
 
 
 REQUEST_TIMEOUT = 8
+CATALOG_CACHE_TTL = 300
+CATALOG_STALE_TTL = 3600
+MAX_ATTEMPTS = 3
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 ALLOWED_RESOURCES = re.compile(
     r"^(search/(movie|multi)|discover/(movie|tv)|(movie|tv)/\d+/(recommendations|videos))$"
 )
+
+_cache = {}
+_cache_lock = threading.Lock()
+
+
+def _cache_key(resource, params):
+    return resource, tuple(sorted((str(key), str(value)) for key, value in params.items()))
+
+
+def _cached(resource, params, *, allow_stale=False):
+    entry = _cache.get(_cache_key(resource, params))
+    if not entry:
+        return None
+    age = time.monotonic() - entry[0]
+    limit = CATALOG_STALE_TTL if allow_stale else CATALOG_CACHE_TTL
+    return entry[1] if age <= limit else None
+
+
+def clear_catalog_cache():
+    """Clear process-local catalog data. Primarily useful for tests and admin tasks."""
+    with _cache_lock:
+        _cache.clear()
 
 STARTER_TITLES = [
     {"id": 438631, "media_type": "movie", "title": "Dune", "release_date": "2021-10-22", "vote_average": 7.8, "vote_count": 14000, "genre_ids": [12, 18, 878], "overview": "A gifted young man must travel to the universe's most dangerous planet to secure his family's future."},
@@ -57,13 +85,44 @@ def fetch_tmdb(resource, params):
     api_key = current_app.config.get("TMDB_API_KEY", "")
     if not api_key:
         return _starter_for(resource, params), "starter"
-    response = requests.get(
-        f"https://api.themoviedb.org/3/{resource}",
-        params={**params, "api_key": api_key},
-        timeout=REQUEST_TIMEOUT,
-    )
-    response.raise_for_status()
-    return response.json(), "tmdb"
+
+    with _cache_lock:
+        cached = _cached(resource, params)
+    if cached is not None:
+        return cached, "cache"
+
+    last_error = None
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            response = requests.get(
+                f"https://api.themoviedb.org/3/{resource}",
+                params={**params, "api_key": api_key},
+                timeout=REQUEST_TIMEOUT,
+            )
+            if response.status_code in RETRYABLE_STATUS_CODES:
+                response.raise_for_status()
+            response.raise_for_status()
+            data = response.json()
+            with _cache_lock:
+                _cache[_cache_key(resource, params)] = (time.monotonic(), data)
+            return data, "tmdb"
+        except requests.RequestException as error:
+            last_error = error
+            status = getattr(error.response, "status_code", None)
+            if status not in RETRYABLE_STATUS_CODES or attempt == MAX_ATTEMPTS - 1:
+                break
+            retry_after = getattr(error.response, "headers", {}).get("Retry-After")
+            try:
+                delay = min(float(retry_after), 5.0) if retry_after else 0.25 * (2 ** attempt)
+            except (TypeError, ValueError):
+                delay = 0.25 * (2 ** attempt)
+            time.sleep(delay)
+
+    with _cache_lock:
+        stale = _cached(resource, params, allow_stale=True)
+    if stale is not None:
+        return stale, "stale-cache"
+    raise last_error
 
 
 def fetch_omdb(title):

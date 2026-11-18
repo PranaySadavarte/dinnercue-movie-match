@@ -340,7 +340,7 @@
 
         .control-surface {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+            grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
             gap: 14px;
             align-items: end;
             padding: 16px;
@@ -891,6 +891,20 @@
                 </select>
             </div>
             <div class="control-block">
+                <label class="control-label" for="providerFilter">Streaming service</label>
+                <select id="providerFilter">
+                    <option value="">Any service</option>
+                    <option value="8">Netflix</option>
+                    <option value="9">Prime Video</option>
+                    <option value="337">Disney+</option>
+                    <option value="15">Hulu</option>
+                    <option value="1899">Max</option>
+                    <option value="350">Apple TV+</option>
+                    <option value="531">Paramount+</option>
+                    <option value="386">Peacock</option>
+                </select>
+            </div>
+            <div class="control-block">
                 <span class="control-label">Type</span>
                 <div class="segmented">
                     <label class="segment is-active">
@@ -1035,6 +1049,7 @@
         const trailersNote = document.getElementById("trailersNote");
         const genreFilter = document.getElementById("genreFilter");
         const runtimeFilter = document.getElementById("runtimeFilter");
+        const providerFilter = document.getElementById("providerFilter");
         const feedbackDialog = document.getElementById("feedbackDialog");
         const feedbackForm = document.getElementById("feedbackForm");
         const feedbackMessage = document.getElementById("feedbackMessage");
@@ -1070,8 +1085,13 @@
         });
         genreFilter.addEventListener("change", loadHomePicks);
         runtimeFilter.addEventListener("change", loadHomePicks);
+        providerFilter.addEventListener("change", () => {
+            localStorage.setItem("dinnercue_provider", providerFilter.value);
+            loadHomePicks();
+        });
         feedbackForm.addEventListener("submit", submitFeedback);
 
+        providerFilter.value = localStorage.getItem("dinnercue_provider") || "";
         renderLists();
         loadHomePicks();
 
@@ -1205,6 +1225,12 @@
 
                     if (endpoint === "movie") {
                         applyRuntimeParams(params);
+                    }
+
+                    if (providerFilter.value) {
+                        params.set("watch_region", "US");
+                        params.set("with_watch_monetization_types", "flatrate");
+                        params.set("with_watch_providers", providerFilter.value);
                     }
 
                     const response = await fetch(`/api/catalog/tmdb/discover/${endpoint}?${params.toString()}`);

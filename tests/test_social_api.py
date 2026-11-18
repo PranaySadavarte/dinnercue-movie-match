@@ -102,6 +102,32 @@ class SocialApiTests(unittest.TestCase):
             "category": "bug", "message": "broken"
         }).status_code, 400)
 
+    def test_subscriptions_can_be_replaced_and_read(self):
+        client = self.app.test_client()
+        self.register(client, "maya", "Maya")
+        response = client.put("/api/subscriptions", json={
+            "region": "US",
+            "subscriptions": [
+                {"provider_id": 8, "provider_name": "Netflix"},
+                {"provider_id": 350, "provider_name": "Apple TV+"},
+            ],
+        })
+        self.assertEqual(response.status_code, 200)
+        saved = client.get("/api/subscriptions").json["subscriptions"]
+        self.assertEqual([item["provider_name"] for item in saved], ["Apple TV+", "Netflix"])
+
+    def test_group_board_endpoint_ignores_absent_votes(self):
+        client = self.app.test_client()
+        response = client.post("/api/recommendations/group-board", json={
+            "absent_friend_ids": ["lee"],
+            "candidates": [
+                {"tmdb_id": 1, "title": "Arrival", "votes": [{"friend_id": "lee", "weight": 4}]},
+                {"tmdb_id": 2, "title": "Dune", "votes": [{"friend_id": "maya", "weight": 2}]},
+            ],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["verdict"]["leader"]["title"], "Dune")
+
 
 if __name__ == "__main__":
     unittest.main()
