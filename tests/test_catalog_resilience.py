@@ -46,13 +46,15 @@ class CatalogResilienceTests(unittest.TestCase):
         self.assertEqual(source, "tmdb")
         self.assertEqual(get.call_count, 2)
 
-    def test_client_error_is_not_retried(self):
+    def test_client_error_is_not_retried_and_uses_starter_fallback(self):
         bad_request = self.response({}, status=400)
         with self.app.app_context(), patch(
             "dinnercue.catalog.requests.get", return_value=bad_request
-        ) as get, self.assertRaises(requests.HTTPError):
-            fetch_tmdb("discover/movie", {})
+        ) as get:
+            data, source = fetch_tmdb("discover/movie", {})
         self.assertEqual(get.call_count, 1)
+        self.assertEqual(source, "starter-fallback")
+        self.assertGreaterEqual(len(data["results"]), 10)
 
 
 if __name__ == "__main__":

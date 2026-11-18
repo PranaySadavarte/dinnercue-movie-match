@@ -91,7 +91,6 @@ def fetch_tmdb(resource, params):
     if cached is not None:
         return cached, "cache"
 
-    last_error = None
     for attempt in range(MAX_ATTEMPTS):
         try:
             response = requests.get(
@@ -107,7 +106,6 @@ def fetch_tmdb(resource, params):
                 _cache[_cache_key(resource, params)] = (time.monotonic(), data)
             return data, "tmdb"
         except requests.RequestException as error:
-            last_error = error
             status = getattr(error.response, "status_code", None)
             if status not in RETRYABLE_STATUS_CODES or attempt == MAX_ATTEMPTS - 1:
                 break
@@ -122,7 +120,9 @@ def fetch_tmdb(resource, params):
         stale = _cached(resource, params, allow_stale=True)
     if stale is not None:
         return stale, "stale-cache"
-    raise last_error
+    # Discovery should remain useful even if TMDb is briefly unavailable or a
+    # local key is invalid. The response header still makes the fallback clear.
+    return _starter_for(resource, params), "starter-fallback"
 
 
 def fetch_omdb(title):
