@@ -558,6 +558,102 @@
             box-shadow: var(--shadow);
         }
 
+        .onboarding-dialog {
+            width: min(860px, calc(100% - 28px));
+            max-height: min(90vh, 820px);
+        }
+
+        .onboarding-shell {
+            display: grid;
+            gap: 22px;
+            padding: clamp(22px, 4vw, 38px);
+        }
+
+        .onboarding-step {
+            display: grid;
+            gap: 22px;
+        }
+
+        .onboarding-step[hidden] {
+            display: none;
+        }
+
+        .choice-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .choice-chip {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .choice-chip input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .choice-chip span {
+            display: block;
+            padding: 10px 14px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            color: var(--muted);
+            font-weight: 800;
+            transition: 150ms ease;
+        }
+
+        .choice-chip input:checked + span {
+            border-color: var(--gold);
+            background: rgba(246, 196, 83, 0.14);
+            color: var(--text);
+        }
+
+        .onboarding-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+            gap: 12px;
+            max-height: 390px;
+            overflow-y: auto;
+        }
+
+        .onboarding-title {
+            display: grid;
+            gap: 7px;
+            padding: 8px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #11151c;
+            color: var(--text);
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .onboarding-title.is-selected {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 2px rgba(246, 196, 83, 0.16);
+        }
+
+        .onboarding-title img,
+        .onboarding-title .poster-placeholder {
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+
+        .onboarding-title strong {
+            font-size: 0.82rem;
+            line-height: 1.25;
+        }
+
+        .auth-divider {
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
         dialog::backdrop {
             background: rgba(5, 6, 7, 0.78);
             backdrop-filter: blur(5px);
@@ -838,6 +934,7 @@
                 <span>DinnerCue</span>
             </a>
             <div class="nav-actions">
+                <button class="secondary-button" type="button" id="accountLabel" data-onboarding-open>New here?</button>
                 <button class="secondary-button" type="button" data-scroll-target="tasteSection">Taste quiz</button>
                 <button class="secondary-button" type="button" data-scroll-target="historyPanel">Watched</button>
                 <button class="secondary-button" type="button" data-api-settings>Movie data</button>
@@ -853,7 +950,7 @@
                 <p class="eyebrow">Tonight queue</p>
                 <h1 id="page-title">Find the thing everyone will actually start.</h1>
             </div>
-            <p class="hero-copy">Search a title, mark what you have watched, and DinnerCue will build recommendations around your taste. Your watched list stays in this browser.</p>
+            <p class="hero-copy" id="heroCopy">Search a title, mark what you have watched, and DinnerCue will build recommendations around your taste. Guest choices stay in this browser.</p>
             <div>
                 <div class="search-panel">
                     <div class="search-field">
@@ -998,6 +1095,93 @@
         <div class="quiz-grid is-hidden" id="tasteGrid" aria-label="Taste quiz titles"></div>
     </main>
 
+    <dialog id="onboardingDialog" class="onboarding-dialog" aria-labelledby="onboarding-title">
+        <div class="onboarding-shell">
+            <section class="onboarding-step" data-onboarding-step="welcome">
+                <div>
+                    <p class="eyebrow">Welcome to DinnerCue</p>
+                    <h2 id="onboarding-title">Let’s make tonight’s shortlist yours.</h2>
+                    <p class="section-note">Two quick steps: tell us where you stream, then tap a few things you enjoy. It usually takes under a minute.</p>
+                </div>
+                <div class="actions">
+                    <a class="gold-button button-link" id="googleLoginButton" href="/auth/google">Continue with Google</a>
+                    <button class="secondary-button" type="button" data-continue-guest>Continue as guest</button>
+                </div>
+                <p class="auth-divider" id="googleLoginNote">Google saves your taste and subscriptions for your next visit. Guest choices stay in this browser.</p>
+            </section>
+
+            <section class="onboarding-step" data-onboarding-step="preferences" hidden>
+                <div>
+                    <p class="eyebrow">Step 1 of 2</p>
+                    <h2>What can we pick from?</h2>
+                    <p class="section-note">Choose every service you have. Leave them blank if you prefer recommendations from anywhere.</p>
+                </div>
+                <div>
+                    <p class="control-label">Your subscriptions</p>
+                    <div class="choice-grid" id="onboardingProviders">
+                        <label class="choice-chip"><input type="checkbox" value="8" data-name="Netflix"><span>Netflix</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="9" data-name="Prime Video"><span>Prime Video</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="337" data-name="Disney+"><span>Disney+</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="15" data-name="Hulu"><span>Hulu</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="1899" data-name="Max"><span>Max</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="350" data-name="Apple TV+"><span>Apple TV+</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="531" data-name="Paramount+"><span>Paramount+</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="386" data-name="Peacock"><span>Peacock</span></label>
+                    </div>
+                </div>
+                <div>
+                    <p class="control-label">Genres you reach for</p>
+                    <div class="choice-grid" id="onboardingGenres">
+                        <label class="choice-chip"><input type="checkbox" value="35"><span>Comedy</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="18"><span>Drama</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="53"><span>Thriller</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="878"><span>Sci-Fi</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="28"><span>Action</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="9648"><span>Mystery</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="10749"><span>Romance</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="16"><span>Animation</span></label>
+                    </div>
+                </div>
+                <div>
+                    <p class="control-label">Tonight’s energy</p>
+                    <div class="choice-grid" id="onboardingMoods">
+                        <label class="choice-chip"><input type="checkbox" value="easygoing"><span>Easygoing</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="feel-good"><span>Feel-good</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="thoughtful"><span>Thoughtful</span></label>
+                        <label class="choice-chip"><input type="checkbox" value="thrilling"><span>Thrilling</span></label>
+                    </div>
+                </div>
+                <div class="control-surface" style="margin: 0;">
+                    <div class="control-block">
+                        <label class="control-label" for="onboardingType">Content type</label>
+                        <select id="onboardingType"><option value="both">Movies and shows</option><option value="movie">Movies</option><option value="tv">Shows</option></select>
+                    </div>
+                    <div class="control-block">
+                        <label class="control-label" for="onboardingRuntime">Dinner length</label>
+                        <select id="onboardingRuntime"><option value="">Any length</option><option value="short">Under 100 minutes</option><option value="standard">100–140 minutes</option><option value="long">Long and immersive</option></select>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button class="gold-button" type="button" data-onboarding-next>Choose watched titles</button>
+                </div>
+            </section>
+
+            <section class="onboarding-step" data-onboarding-step="watched" hidden>
+                <div>
+                    <p class="eyebrow">Step 2 of 2</p>
+                    <h2>What have you already enjoyed?</h2>
+                    <p class="section-note">Tap 3–5 familiar titles. You can skip this, but a few taps make the recommendations much sharper.</p>
+                </div>
+                <div class="onboarding-grid" id="onboardingTitles"><div class="empty-state">Loading popular titles…</div></div>
+                <div class="actions">
+                    <button class="gold-button" type="button" data-onboarding-finish>Show tonight’s picks</button>
+                    <button class="secondary-button" type="button" data-onboarding-back>Back</button>
+                </div>
+            </section>
+            <div class="status" id="onboardingStatus" role="status" aria-live="polite"></div>
+        </div>
+    </dialog>
+
     <dialog id="feedbackDialog" aria-labelledby="feedback-title">
         <form class="feedback-form" id="feedbackForm">
             <div>
@@ -1031,6 +1215,7 @@
         const storageKeys = {
             watched: "dinnercue_watched_titles",
             watchlist: "dinnercue_watchlist_titles",
+            onboarding: "dinnercue_onboarding_profile",
         };
 
         const input = document.getElementById("movieInput");
@@ -1054,11 +1239,23 @@
         const feedbackForm = document.getElementById("feedbackForm");
         const feedbackMessage = document.getElementById("feedbackMessage");
         const feedbackStatus = document.getElementById("feedbackStatus");
+        const onboardingDialog = document.getElementById("onboardingDialog");
+        const onboardingTitles = document.getElementById("onboardingTitles");
+        const onboardingStatus = document.getElementById("onboardingStatus");
+        const accountLabel = document.getElementById("accountLabel");
+        const heroCopy = document.getElementById("heroCopy");
+        const googleLoginButton = document.getElementById("googleLoginButton");
+        const googleLoginNote = document.getElementById("googleLoginNote");
 
         let autocompleteTimer;
         let currentSelection = null;
         let watchedTitles = readStorage(storageKeys.watched);
         let watchlistTitles = readStorage(storageKeys.watchlist);
+        let currentUser = null;
+        let onboardingMode = "guest";
+        let onboardingWatched = new Map();
+        let activeProviderIds = [];
+        let activeGenreIds = [];
 
         searchButton.addEventListener("click", fetchMovie);
         input.addEventListener("input", autocompleteSearch);
@@ -1083,17 +1280,229 @@
                 loadHomePicks();
             });
         });
-        genreFilter.addEventListener("change", loadHomePicks);
+        genreFilter.addEventListener("change", () => {
+            activeGenreIds = [];
+            loadHomePicks();
+        });
         runtimeFilter.addEventListener("change", loadHomePicks);
         providerFilter.addEventListener("change", () => {
+            activeProviderIds = [];
             localStorage.setItem("dinnercue_provider", providerFilter.value);
             loadHomePicks();
         });
         feedbackForm.addEventListener("submit", submitFeedback);
+        document.querySelector("[data-continue-guest]").addEventListener("click", continueAsGuest);
+        document.querySelector("[data-onboarding-next]").addEventListener("click", openWatchedStep);
+        document.querySelector("[data-onboarding-back]").addEventListener("click", () => showOnboardingStep("preferences"));
+        document.querySelector("[data-onboarding-finish]").addEventListener("click", finishOnboarding);
+        document.querySelector("[data-onboarding-open]").addEventListener("click", () => {
+            populateOnboardingForm(readStorage(storageKeys.onboarding));
+            showOnboardingStep("preferences");
+            onboardingDialog.showModal();
+        });
 
         providerFilter.value = localStorage.getItem("dinnercue_provider") || "";
         renderLists();
-        loadHomePicks();
+        initializeExperience();
+
+        async function initializeExperience() {
+            const authMessage = new URLSearchParams(window.location.search).get("auth");
+            try {
+                const authResponse = await fetch("/api/auth/me");
+                if (authResponse.ok) {
+                    const auth = await authResponse.json();
+                    currentUser = auth.user || null;
+                    onboardingMode = auth.mode || "guest";
+                }
+            } catch (error) {
+                console.error("Could not check sign-in state:", error);
+            }
+
+            if (currentUser) {
+                accountLabel.textContent = currentUser.display_name;
+                heroCopy.textContent = "DinnerCue remembers your subscriptions and taste profile, then builds a fresh shortlist for tonight.";
+                const profileResponse = await fetch("/api/onboarding");
+                if (profileResponse.ok) {
+                    const profile = await profileResponse.json();
+                    if (profile.onboarding_completed) {
+                        applyOnboardingProfile(profile);
+                        await loadHomePicks();
+                        return;
+                    }
+                }
+                showOnboardingStep("preferences");
+                onboardingDialog.showModal();
+                return;
+            }
+
+            const localProfile = readStorage(storageKeys.onboarding);
+            if (localProfile?.onboarding_completed) {
+                accountLabel.textContent = "Guest";
+                applyOnboardingProfile(localProfile);
+                await loadHomePicks();
+                return;
+            }
+
+            try {
+                const googleStatusResponse = await fetch("/api/auth/google/status");
+                const googleStatus = await googleStatusResponse.json();
+                if (!googleStatus.configured) {
+                    googleLoginNote.textContent = "Google login is ready for credentials. For now, continue as guest; your choices will stay in this browser.";
+                    googleLoginButton.title = "Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable Google login";
+                }
+            } catch {
+                // Guest onboarding remains available even when auth status cannot load.
+            }
+            if (authMessage === "google-unavailable") {
+                onboardingStatus.textContent = "Google login needs its client credentials. You can continue as guest now.";
+            }
+            showOnboardingStep("welcome");
+            onboardingDialog.showModal();
+        }
+
+        async function continueAsGuest() {
+            try {
+                await fetch("/api/auth/guest", { method: "POST" });
+            } catch {
+                // Browser storage is sufficient for guest mode.
+            }
+            onboardingMode = "guest";
+            accountLabel.textContent = "Guest";
+            showOnboardingStep("preferences");
+        }
+
+        function showOnboardingStep(name) {
+            document.querySelectorAll("[data-onboarding-step]").forEach((step) => {
+                step.hidden = step.dataset.onboardingStep !== name;
+            });
+            onboardingStatus.textContent = "";
+        }
+
+        async function openWatchedStep() {
+            showOnboardingStep("watched");
+            onboardingTitles.innerHTML = `<div class="empty-state">Loading popular titles…</div>`;
+            try {
+                const [moviesResponse, showsResponse] = await Promise.all([
+                    fetch("/api/catalog/tmdb/discover/movie?sort_by=vote_count.desc&vote_count.gte=4000&page=1"),
+                    fetch("/api/catalog/tmdb/discover/tv?sort_by=vote_count.desc&vote_count.gte=1500&page=1"),
+                ]);
+                const [movies, shows] = await Promise.all([moviesResponse.json(), showsResponse.json()]);
+                const titles = dedupeItems([
+                    ...normalizeTmdbItems(movies.results || [], "movie"),
+                    ...normalizeTmdbItems(shows.results || [], "tv"),
+                ]).sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0)).slice(0, 18);
+                renderOnboardingTitles(titles);
+            } catch (error) {
+                onboardingTitles.innerHTML = `<div class="empty-state">Could not load title choices. You can still finish and add watched titles later.</div>`;
+            }
+        }
+
+        function renderOnboardingTitles(titles) {
+            onboardingTitles.innerHTML = "";
+            titles.forEach((item) => {
+                const key = `${item.media_type}:${item.id}`;
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = `onboarding-title${onboardingWatched.has(key) ? " is-selected" : ""}`;
+                button.innerHTML = `${getTmdbPosterMarkup(item.poster_path, item.title, "poster")}<strong>${escapeHtml(item.title)}</strong>`;
+                button.addEventListener("click", () => {
+                    if (onboardingWatched.has(key)) onboardingWatched.delete(key);
+                    else onboardingWatched.set(key, item);
+                    button.classList.toggle("is-selected", onboardingWatched.has(key));
+                    onboardingStatus.textContent = `${onboardingWatched.size} title${onboardingWatched.size === 1 ? "" : "s"} selected`;
+                });
+                onboardingTitles.appendChild(button);
+            });
+        }
+
+        function collectOnboardingProfile() {
+            const checked = (selector) => [...document.querySelectorAll(`${selector} input:checked`)];
+            const type = document.getElementById("onboardingType").value;
+            return {
+                subscriptions: checked("#onboardingProviders").map((inputEl) => ({
+                    provider_id: Number(inputEl.value), provider_name: inputEl.dataset.name,
+                })),
+                favorite_genres: checked("#onboardingGenres").map((inputEl) => inputEl.value),
+                moods: checked("#onboardingMoods").map((inputEl) => inputEl.value),
+                content_types: type === "both" ? ["movie", "tv"] : [type],
+                runtime_preference: document.getElementById("onboardingRuntime").value,
+                watched_titles: [...onboardingWatched.values()],
+                onboarding_completed: true,
+            };
+        }
+
+        async function finishOnboarding() {
+            const profile = collectOnboardingProfile();
+            const finishButton = document.querySelector("[data-onboarding-finish]");
+            finishButton.disabled = true;
+            onboardingStatus.textContent = "Building tonight’s shortlist…";
+            try {
+                if (currentUser) {
+                    const response = await fetch("/api/onboarding", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(profile),
+                    });
+                    if (!response.ok) throw new Error((await response.json()).error || "Could not save your profile");
+                }
+                writeStorage(storageKeys.onboarding, profile);
+                applyOnboardingProfile(profile);
+                onboardingDialog.close();
+                await loadHomePicks();
+                setStatus("Your dinner picks are ready.", "success");
+            } catch (error) {
+                onboardingStatus.textContent = error.message;
+            } finally {
+                finishButton.disabled = false;
+            }
+        }
+
+        function applyOnboardingProfile(profile) {
+            activeProviderIds = (profile.subscriptions || []).map((item) => String(item.provider_id));
+            activeGenreIds = (profile.favorite_genres || []).map(String);
+            watchedTitles = profile.watched_titles || [];
+            writeStorage(storageKeys.watched, watchedTitles);
+            writeStorage(storageKeys.onboarding, profile);
+            onboardingWatched = new Map(watchedTitles.map((item) => [`${item.media_type}:${item.id}`, item]));
+
+            runtimeFilter.value = profile.runtime_preference || "";
+            genreFilter.querySelector("option[data-profile-option]")?.remove();
+            providerFilter.querySelector("option[data-profile-option]")?.remove();
+            if (activeGenreIds.length) {
+                const tasteOption = new Option(`My taste (${activeGenreIds.length})`, "__profile_genres", true, true);
+                tasteOption.dataset.profileOption = "true";
+                tasteOption.disabled = true;
+                genreFilter.prepend(tasteOption);
+            }
+            if (activeProviderIds.length) {
+                const serviceOption = new Option(`My services (${activeProviderIds.length})`, "__profile_providers", true, true);
+                serviceOption.dataset.profileOption = "true";
+                serviceOption.disabled = true;
+                providerFilter.prepend(serviceOption);
+            }
+            const types = profile.content_types || [];
+            const typeValue = types.length === 1 ? types[0] : "all";
+            const typeInput = document.querySelector(`input[name="typeFilter"][value="${typeValue}"]`);
+            if (typeInput) typeInput.checked = true;
+            document.querySelectorAll(".segment").forEach((segment) => {
+                segment.classList.toggle("is-active", Boolean(segment.querySelector("input")?.checked));
+            });
+            renderLists();
+        }
+
+        function populateOnboardingForm(profile) {
+            if (!profile || Array.isArray(profile)) return;
+            const providerIds = new Set((profile.subscriptions || []).map((item) => String(item.provider_id)));
+            const genreIds = new Set((profile.favorite_genres || []).map(String));
+            const moods = new Set(profile.moods || []);
+            document.querySelectorAll("#onboardingProviders input").forEach((el) => { el.checked = providerIds.has(el.value); });
+            document.querySelectorAll("#onboardingGenres input").forEach((el) => { el.checked = genreIds.has(el.value); });
+            document.querySelectorAll("#onboardingMoods input").forEach((el) => { el.checked = moods.has(el.value); });
+            document.getElementById("onboardingRuntime").value = profile.runtime_preference || "";
+            const types = profile.content_types || [];
+            document.getElementById("onboardingType").value = types.length === 1 ? types[0] : "both";
+            onboardingWatched = new Map((profile.watched_titles || []).map((item) => [`${item.media_type}:${item.id}`, item]));
+        }
 
         async function fetchMovie() {
             const movieTitle = input.value.trim();
@@ -1219,18 +1628,20 @@
                         page,
                     });
 
-                    if (genreFilter.value && endpoint === "movie") {
-                        params.set("with_genres", genreFilter.value);
+                    const genreSelection = activeGenreIds.length ? activeGenreIds.join("|") : genreFilter.value;
+                    if (genreSelection) {
+                        params.set("with_genres", genreSelection);
                     }
 
                     if (endpoint === "movie") {
                         applyRuntimeParams(params);
                     }
 
-                    if (providerFilter.value) {
+                    const providerSelection = activeProviderIds.length ? activeProviderIds.join("|") : providerFilter.value;
+                    if (providerSelection) {
                         params.set("watch_region", "US");
                         params.set("with_watch_monetization_types", "flatrate");
-                        params.set("with_watch_providers", providerFilter.value);
+                        params.set("with_watch_providers", providerSelection);
                     }
 
                     const response = await fetch(`/api/catalog/tmdb/discover/${endpoint}?${params.toString()}`);
@@ -1250,7 +1661,8 @@
                     .sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0))
                     .slice(0, 12);
 
-                if (!items.length && providerFilter.value) {
+                if (!items.length && (providerFilter.value || activeProviderIds.length)) {
+                    activeProviderIds = [];
                     providerFilter.value = "";
                     localStorage.removeItem("dinnercue_provider");
                     setStatus("No titles matched that service. Showing picks from every service instead.", "success");

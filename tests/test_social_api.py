@@ -28,7 +28,7 @@ class SocialApiTests(unittest.TestCase):
 
         connection = connect(self.app.config["DINNERCUE_DATABASE_PATH"])
         try:
-            for table in ("user_feedback", "recommendations", "subscriptions", "reviews", "friendships", "users"):
+            for table in ("user_feedback", "recommendations", "subscriptions", "reviews", "friendships", "user_profiles", "users"):
                 connection.execute(f"DELETE FROM {table}")
             connection.commit()
         finally:
@@ -53,6 +53,18 @@ class SocialApiTests(unittest.TestCase):
         self.assertEqual(client.post("/api/auth/login", json={
             "username": "maya", "password": "good-password"
         }).status_code, 200)
+
+    def test_guest_mode_does_not_require_an_account(self):
+        client = self.app.test_client()
+        self.assertEqual(client.post("/api/auth/guest").status_code, 200)
+        response = client.get("/api/auth/me")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["mode"], "guest")
+        self.assertIsNone(response.json["user"])
+
+    def test_google_status_explains_when_credentials_are_missing(self):
+        response = self.app.test_client().get("/api/auth/google/status")
+        self.assertEqual(response.json, {"configured": False})
 
     def test_friend_request_trust_and_review_feed(self):
         maya = self.app.test_client()
@@ -115,6 +127,28 @@ class SocialApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         saved = client.get("/api/subscriptions").json["subscriptions"]
         self.assertEqual([item["provider_name"] for item in saved], ["Apple TV+", "Netflix"])
+
+    def test_onboarding_profile_and_watched_titles_persist(self):
+        client = self.app.test_client()
+        self.register(client, "maya", "Maya")
+        payload = {
+            "favorite_genres": [35, 878],
+            "moods": ["feel-good"],
+            "content_types": ["movie", "tv"],
+            "runtime_preference": "short",
+            "subscriptions": [{"provider_id": 8, "provider_name": "Netflix"}],
+            "watched_titles": [{
+                "id": 438631, "tmdb_id": 438631, "media_type": "movie",
+                "title": "Dune", "poster_path": "/poster.jpg", "year": "2021",
+            }],
+        }
+        saved = client.put("/api/onboarding", json=payload)
+        self.assertEqual(saved.status_code, 200)
+        profile = client.get("/api/onboarding").json
+        self.assertTrue(profile["onboarding_completed"])
+        self.assertEqual(profile["favorite_genres"], ["35", "878"])
+        self.assertEqual(profile["subscriptions"][0]["provider_name"], "Netflix")
+        self.assertEqual(profile["watched_titles"][0]["title"], "Dune")
 
     def test_group_board_endpoint_ignores_absent_votes(self):
         client = self.app.test_client()

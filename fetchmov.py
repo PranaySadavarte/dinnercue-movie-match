@@ -8,13 +8,17 @@ from flask import Flask, request, render_template
 import requests
 
 from dinnercue.api import register_api
+from dinnercue.oauth import register_google_oauth
 
 app = Flask(__name__, template_folder=".")
 app.config["SECRET_KEY"] = os.getenv("DINNERCUE_SECRET_KEY", "dev-only-change-me")
 app.config["DINNERCUE_DATABASE_PATH"] = os.getenv("DINNERCUE_DATABASE_PATH")
 app.config["TMDB_API_KEY"] = os.getenv("TMDB_API_KEY", "")
 app.config["OMDB_API_KEY"] = os.getenv("OMDB_API_KEY", "")
+app.config["GOOGLE_CLIENT_ID"] = os.getenv("GOOGLE_CLIENT_ID", "")
+app.config["GOOGLE_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET", "")
 register_api(app)
+register_google_oauth(app)
 
 OMDB_API_KEY = os.getenv("OMDB_API_KEY", "")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY", "")

@@ -11,7 +11,21 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL,
     password_hash TEXT,
+    google_sub TEXT UNIQUE,
+    email TEXT,
+    avatar_url TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    favorite_genres TEXT NOT NULL DEFAULT '[]',
+    moods TEXT NOT NULL DEFAULT '[]',
+    content_types TEXT NOT NULL DEFAULT '[]',
+    runtime_preference TEXT NOT NULL DEFAULT '',
+    watched_titles TEXT NOT NULL DEFAULT '[]',
+    onboarding_completed INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS friendships (
@@ -96,8 +110,18 @@ def init_db(path=None):
     try:
         connection.executescript(SCHEMA)
         columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
-        if "password_hash" not in columns:
-            connection.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
-            connection.commit()
+        migrations = {
+            "password_hash": "ALTER TABLE users ADD COLUMN password_hash TEXT",
+            "google_sub": "ALTER TABLE users ADD COLUMN google_sub TEXT",
+            "email": "ALTER TABLE users ADD COLUMN email TEXT",
+            "avatar_url": "ALTER TABLE users ADD COLUMN avatar_url TEXT",
+        }
+        for column, statement in migrations.items():
+            if column not in columns:
+                connection.execute(statement)
+        connection.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users (google_sub) WHERE google_sub IS NOT NULL"
+        )
+        connection.commit()
     finally:
         connection.close()

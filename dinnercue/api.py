@@ -1,4 +1,5 @@
 from functools import wraps
+import json
 
 from flask import Blueprint, current_app, jsonify, request, session
 import requests
@@ -18,7 +19,15 @@ def _connection():
 
 
 def _user_dict(row):
-    return {"id": row["id"], "username": row["username"], "display_name": row["display_name"]}
+    keys = set(row.keys())
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "display_name": row["display_name"],
+        "email": row["email"] if "email" in keys else None,
+        "avatar_url": row["avatar_url"] if "avatar_url" in keys else None,
+        "account_type": "google" if "google_sub" in keys and row["google_sub"] else "password",
+    }
 
 
 def login_required(view):
@@ -145,15 +154,134 @@ def logout():
     return "", 204
 
 
+@api.post("/auth/guest")
+def continue_as_guest():
+    session.clear()
+    session["guest"] = True
+    return jsonify({"mode": "guest"})
+
+
+@api.get("/auth/google/status")
+def google_status():
+    return jsonify({"configured": bool(
+        current_app.config.get("GOOGLE_CLIENT_ID") and current_app.config.get("GOOGLE_CLIENT_SECRET")
+    )})
+
+
 @api.get("/auth/me")
-@login_required
 def me():
+    if session.get("guest"):
+        return jsonify({"mode": "guest", "user": None})
+    if not session.get("user_id"):
+        return jsonify({"error": "authentication required"}), 401
     connection = _connection()
     try:
         row = connection.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
     finally:
         connection.close()
-    return jsonify({"user": _user_dict(row)})
+    return jsonify({"mode": "account", "user": _user_dict(row)})
+
+
+def _profile_payload(row, subscriptions_rows):
+    if not row:
+        return {
+            "favorite_genres": [], "moods": [], "content_types": [],
+            "runtime_preference": "", "watched_titles": [],
+            "onboarding_completed": False,
+            "subscriptions": [dict(item) for item in subscriptions_rows],
+        }
+    return {
+        "favorite_genres": json.loads(row["favorite_genres"]),
+        "moods": json.loads(row["moods"]),
+        "content_types": json.loads(row["content_types"]),
+        "runtime_preference": row["runtime_preference"],
+        "watched_titles": json.loads(row["watched_titles"]),
+        "onboarding_completed": bool(row["onboarding_completed"]),
+        "subscriptions": [dict(item) for item in subscriptions_rows],
+    }
+
+
+@api.get("/onboarding")
+@login_required
+def get_onboarding():
+    connection = _connection()
+    try:
+        profile = connection.execute("SELECT * FROM user_profiles WHERE user_id = ?", (session["user_id"],)).fetchone()
+        subscriptions_rows = connection.execute(
+            "SELECT provider_id, provider_name, region FROM subscriptions WHERE user_id = ? ORDER BY provider_name",
+            (session["user_id"],),
+        ).fetchall()
+    finally:
+        connection.close()
+    return jsonify(_profile_payload(profile, subscriptions_rows))
+
+
+@api.put("/onboarding")
+@login_required
+def save_onboarding():
+    payload = request.get_json(silent=True) or {}
+    favorite_genres = payload.get("favorite_genres", [])
+    moods = payload.get("moods", [])
+    content_types = payload.get("content_types", [])
+    watched_titles = payload.get("watched_titles", [])
+    providers = payload.get("subscriptions", [])
+    runtime = str(payload.get("runtime_preference", ""))
+    allowed_runtime = {"", "short", "standard", "long"}
+    allowed_types = {"movie", "tv"}
+
+    if not all(isinstance(value, list) for value in (favorite_genres, moods, content_types, watched_titles, providers)):
+        return jsonify({"error": "onboarding selections must be lists"}), 400
+    if len(favorite_genres) > 6 or len(moods) > 4 or len(watched_titles) > 30 or len(providers) > 20:
+        return jsonify({"error": "too many onboarding selections"}), 400
+    if runtime not in allowed_runtime or not set(content_types).issubset(allowed_types):
+        return jsonify({"error": "invalid runtime or content type"}), 400
+
+    try:
+        normalized_genres = [str(int(value)) for value in favorite_genres]
+        normalized_moods = [str(value).strip()[:30] for value in moods if str(value).strip()]
+        normalized_titles = []
+        for title in watched_titles:
+            normalized_titles.append({
+                "id": int(title["id"]),
+                "tmdb_id": int(title.get("tmdb_id", title["id"])),
+                "media_type": "tv" if title.get("media_type") == "tv" else "movie",
+                "title": str(title["title"])[:150],
+                "poster_path": str(title.get("poster_path", ""))[:200],
+                "year": str(title.get("year", ""))[:4],
+            })
+        normalized_providers = {
+            int(provider["provider_id"]): str(provider["provider_name"]).strip()[:80]
+            for provider in providers
+        }
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "invalid onboarding selection"}), 400
+
+    connection = _connection()
+    try:
+        connection.execute(
+            """
+            INSERT INTO user_profiles
+                (user_id, favorite_genres, moods, content_types, runtime_preference, watched_titles, onboarding_completed)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+            ON CONFLICT(user_id) DO UPDATE SET
+                favorite_genres = excluded.favorite_genres, moods = excluded.moods,
+                content_types = excluded.content_types, runtime_preference = excluded.runtime_preference,
+                watched_titles = excluded.watched_titles, onboarding_completed = 1,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (session["user_id"], json.dumps(normalized_genres), json.dumps(normalized_moods),
+             json.dumps(content_types), runtime, json.dumps(normalized_titles)),
+        )
+        connection.execute("DELETE FROM subscriptions WHERE user_id = ? AND region = 'US'", (session["user_id"],))
+        connection.executemany(
+            "INSERT INTO subscriptions (user_id, provider_id, provider_name, region) VALUES (?, ?, ?, 'US')",
+            [(session["user_id"], provider_id, provider_name) for provider_id, provider_name in normalized_providers.items()],
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    return jsonify({"status": "saved", "onboarding_completed": True})
 
 
 @api.post("/friends/requests")

@@ -17,12 +17,24 @@ DinnerCue Movie Match is a lightweight movie and TV discovery app. It helps user
 - Explainable recommendation ranking that combines personal taste, trusted friends, availability, tonight's context, and novelty
 - Presence-aware group standings so absent friends do not decide tonight's pick
 - Cached TMDb responses with bounded retry/backoff and short-lived stale fallback
+- First-run onboarding for subscriptions, favorite genres, mood, runtime, content type, and watched-title seeds
+- Google OpenID Connect login with persistent profiles, plus browser-local guest mode
 
 ## Run Locally
 
 Run the Flask app and open `http://127.0.0.1:5000`. DinnerCue includes a small starter catalog, so recommendations and search work immediately on a fresh checkout.
 
 For live catalog data, set your TMDb key and optional OMDb key in `.env`. Keys remain on the server and are never sent to the browser.
+
+Google login uses a server-side OpenID Connect flow. Create a Google Web application
+client, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and register this local
+redirect URI exactly:
+
+```text
+http://127.0.0.1:5000/auth/google/callback
+```
+
+Without those credentials the guest onboarding flow remains fully usable.
 
 The optional Flask helper can serve the same page if Python dependencies are installed:
 

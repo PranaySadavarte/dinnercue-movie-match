@@ -24,6 +24,7 @@ class DatabaseTests(unittest.TestCase):
 
         self.assertTrue({
             "users",
+            "user_profiles",
             "friendships",
             "reviews",
             "subscriptions",
